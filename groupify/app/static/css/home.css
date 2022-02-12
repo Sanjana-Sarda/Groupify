@@ -1,0 +1,20 @@
+.welcome-box {
+    text-align: center;
+    width: 50%;
+    position: relative;
+    left: 50%;
+    margin-top: 30vh;
+    transform: translateX(-50%);
+    font-size: 20px;
+    min-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    height: 240px
+}
+
+.welcome-box h1, p {
+    margin-top: 0px;
+    display: inline-block;
+}
+.welcome-box p {color: white}
+

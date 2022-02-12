@@ -1,0 +1,8 @@
+app/json
+app/secrets.py
+app/psecrets.py
+app/static/js/build
+*/node_modules/*
+*/__pycache__/*
+*node_modules/*
+

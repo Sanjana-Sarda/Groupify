@@ -1,0 +1,10 @@
+{% extends 'head.html' %}
+{% block head %}
+    <title>spotify party - error: {{ errno }}</title>
+{% endblock %}
+
+{% block body %}
+    <div id="error-mount-point"></div>
+    <script src='/static/js/build/error.js'></script>
+    <h2 style="color: white" class="center">Error: {{ errno }} {{ name }}</h2>
+{% endblock %}
