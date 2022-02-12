@@ -80,9 +80,9 @@ def fetch_audio_features(sp, df):
 def mean_of_song_features(songs_of_all_users):
     return pd.DataFrame(songs_of_all_users.median(), columns= ['fav_playlist'])
 
-def normalize_songs_with_common_user_featurs(songs_of_all_users,mean_of_song_features):
+def normalize_songs_with_common_user_features(songs_of_all_users,mean_of_song_features):
     new_dataframe=songs_of_all_users.subtract(mean_of_song_features, axis='columns')
-    new_dataframe.divide(Y, axis='columns')
+    new_dataframe.divide(mean_of_song_features, axis='columns')
     new_dataframe.drop(['instrumentalness'], axis=1)
     new_dataframe['variation'] = new_dataframe.sum(axis=1)
     new_dataframe['variation'] = new_dataframe['variation'].abs()
@@ -90,7 +90,7 @@ def normalize_songs_with_common_user_featurs(songs_of_all_users,mean_of_song_fea
     new_dataframe=new_dataframe.nsmallest(50,'variation', keep='first')
 
 def create_playlist(sp, username, playlist_name, playlist_description):
-    playlists = sp.user_playlist_create(username, playlist_name, description = playlist_description)
+    playlists = sp.user_playlist_create(username,"TestPlaylist", description = "Test Playlist")
 
 def enrich_playlist(sp, username, playlist_id, playlist_tracks):
     index = 0
