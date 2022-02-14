@@ -21,7 +21,8 @@ except:
 app = Flask(__name__, static_folder="static")
 path = os.path.dirname(os.path.abspath(__file__))
 socketio = SocketIO(app)
-scopes  = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public'
+socketio.init_app(app, cors_allowed_origins="*")
+scopes  = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
 user_json = os.path.join(path, 'json', 'userdata.json')
 party_json = os.path.join(path, 'json', 'parties.json')
 
@@ -152,15 +153,23 @@ def create_playlist():
     songs_df = pd.concat(songs_of_all_users)
 
     song_audio_features=fetch_audio_features(sp, songs_df)
-
+    
+    owner_token = users[owner]['token']
+    if owner_token:
+            sp_owner = spotipy.Spotify(auth=owner_token)
+    else:
+        print("Can't get token for", owner)
 
     mean_song_audio_features=mean_of_song_features(song_audio_features)
 
     normalized_songs=normalize_songs_with_common_user_features(song_audio_features, mean_song_audio_features)
 
-    create_playlist(sp, owner, 'JS Blend', 'Test playlist created using python!')
-    enrich_playlist(sp, owner, '0FYV80FmDwFh4rvpknPhR0', normalized_songs)
-    return "200"
+    id = create_playlist(sp_owner, 'JS Blend', 'Test playlist created using python!')
+    enrich_playlist(sp_owner, owner, id, normalized_songs)
+    resp = make_response(render_template('playlists.html', host=request.host))
+    resp.set_cookie('playlist_id', id)
+    return resp
+    #return "200"
 
 @app.route('/party/<name>')
 def party(name):
@@ -221,6 +230,7 @@ def refresh(name, uid):
 if debug:
     @app.errorhandler(Exception)
     def error(e):
+        print (e)
         code = 500
         name = "Internal Server Error"
         if isinstance(e, HTTPException):
@@ -371,9 +381,6 @@ def mean_of_song_features(songs_of_all_users):
 
 def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_features):
     new_dataframe=songs_of_all_users.subtract(mean_of_song_features.squeeze(), axis=1)
-    print(songs_of_all_users)
-    print(mean_of_song_features)
-    print(new_dataframe)
     new_dataframe.divide(mean_of_song_features, axis='columns')
     new_dataframe.drop(['instrumentalness'], axis=1)
     new_dataframe['variation'] = new_dataframe.sum(axis=1)
@@ -383,8 +390,12 @@ def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_f
     
     return new_dataframe.index
 
-def create_playlist(sp, username, playlist_name, playlist_description):
-    playlists = sp.user_playlist_create(username,"TestPlaylist", description = "Test Playlist")
+def create_playlist(sp, playlist_name, playlist_description):
+    user =  sp.current_user()['id']
+    playlists = sp.user_playlist_create(user,"TestPlaylist", description = "Test Playlist")
+    playlist_id = playlists['id']
+    return playlist_id
+
 
 def enrich_playlist(sp, username, playlist_id, playlist_tracks):
     index = 0

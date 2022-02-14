@@ -10,7 +10,7 @@ class ErrorPage extends React.Component {
     }
     render () {
         if (!this.state.loggedIn) {
-            return <TopBar left="login" />
+            return <TopBar left="Login" />
         }
         return (
             <TopBar />
