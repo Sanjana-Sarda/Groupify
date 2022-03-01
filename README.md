@@ -28,3 +28,17 @@ secret = 'your_client_secret'
 $ cd ..
 $ python app.py
 ```
+
+## Data
+We are using the following datasets: 
+1. Spotify Million Playlist Challenge database: https://research.atspotify.com/the-million-playlist-dataset-remastered/ 
+2. Spotify Skip Prediction Data Challenge: https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge 
+3. Public data available through Spotipy API
+
+For 1 and 2, they can be accessed at the following GCP bucket gs://groupify2022, project name: strategic-altar-342721 for purposes of running source code - Please contact us for access. 
+
+```
+$ gsutil config
+$ gstuil ls 
+$ gsutil cp gs://<bucketname>>/<<filename>> <<localpath>>
+```
