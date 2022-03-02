@@ -31,6 +31,11 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from spotipy import oauth2
 import random
 from functools import reduce
+
+import json, os
+import traceback
+import matplotlib.pyplot as plt
+%matplotlib inline
 ```
 
 ```python
@@ -38,20 +43,28 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy.util as util
 
-
-cid ='' # Client ID; copy this from your app created on beta.developer.spotify.com
-secret = '' # Client Secret; copy this from your app
-username = '' # Your Spotify username
-redirect_uri = 'https://example.com'
-
-# Once the Authorisation is complete, we just need to `sp` to call the APIs
-scope = 'user-top-read playlist-modify-public'
-token = util.prompt_for_user_token(username, scope, client_id=cid, client_secret=secret, redirect_uri=redirect_uri)
-
-if token:
-    sp = spotipy.Spotify(auth=token)
+if os.path.exists('resources/creds.json'): 
+    creds = json.load(open('resources/creds.json'))
 else:
-    print("Can't get token for", username)
+    print('Aborting authentication; cannot go further')
+try: 
+    cid = creds['cid']
+    secret = creds['secret']
+    username= creds['username']
+    redirect_uri = creds['redirect_uri']
+
+
+    # Once the Authorisation is complete, we just need to `sp` to call the APIs
+    scope = 'user-top-read user-read-recently-played user-follow-read playlist-modify-public user-library-read playlist-read-collaborative'
+    token = util.prompt_for_user_token(username, scope, client_id=cid, client_secret=secret, redirect_uri=redirect_uri)
+
+    if token:
+        sp = spotipy.Spotify(auth=token)
+    else:
+        print("Can't get token for", username)
+except: 
+    print(traceback.format_exc(5))
+    print("Input credential information in resources/creds.json, and try again")
 ```
 
 ```python
