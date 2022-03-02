@@ -68,8 +68,27 @@ except:
 ```
 
 ```python
-results = sp.current_user_top_tracks(limit=50, offset=0,time_range='medium_term')
-results
+results_top_tracks = sp.current_user_top_tracks(limit=25, offset=0,time_range='medium_term')
+results_top_tracks
+```
+
+```python
+results_recently_played = sp.current_user_recently_played(limit=25)
+# results_try = sp.current_user_saved_tracks(limit = 50, offset= 0)
+results_recently_played
+```
+
+```python
+results_top_tracks = sp.current_user_top_tracks(limit=25, offset=0,time_range='medium_term')
+results_recently_played = sp.current_user_recently_played(limit=25)
+all_results = {}
+all_results['items'] = results_top_tracks['items']
+print(type(results['items']))
+for ind, item in enumerate(results_recently_played['items']): 
+    all_results['items'] = all_results['items'] + [results_recently_played['items'][ind]['track']]
+
+# all_results['items'] += results_try['items']
+results = all_results
 ```
 
 ```python
@@ -164,12 +183,12 @@ plt.show()
 ```
 
 ```python
-def featured_playlists(sp):
+def featured_playlists(sp, username):
     id = []
     name = []
     num_tracks = []
  # For looping through the API request  
-    playlists = sp.user_playlists('')#Replace with user id
+    playlists = sp.user_playlists(username)#Replace with user id
     for i, items in enumerate(playlists['items']):
         id.append(items['id'])
         name.append(items['name'])
@@ -181,7 +200,7 @@ def featured_playlists(sp):
 ```
 
 ```python
-df_playlists = featured_playlists(sp)
+df_playlists = featured_playlists(sp, creds['username'])
 df_playlists
 ```
 
@@ -269,13 +288,20 @@ def fetch_audio_features_mean(sp, playlist_id):
 
 ```python
 # Merge them together
+import numpy
 dataframes = []
 # Loop through the filenames to populate dataframes with different dataframes 
-for  i in df_playlists['id']:
+for  playlist in df_playlists['id']:
     try:
-        dataframes.append(fetch_audio_features_mean(sp, i))
+        mean_df = fetch_audio_features_mean(sp, playlist)
+
+        if any(numpy.isnan(mean_df.values)): 
+            
+            print ("Skip "+playlist)
+            continue
+        dataframes.append(mean_df)
     except:
-        print ("Skip "+i)
+        print ("Skip "+playlist)
 ```
 
 ```python
@@ -377,6 +403,10 @@ def create_playlist(sp, username, playlist_name, playlist_description):
 ```
 
 ```python
+
+```
+
+```python
 create_playlist(sp, username, 'JS Blend2', 'Test playlist created using python!')
 ```
 
@@ -426,4 +456,8 @@ enrich_playlist(sp, username, '', list_track) #playlist id
 
 ```python
 fetch_playlists(sp,username)
+```
+
+```python
+
 ```
