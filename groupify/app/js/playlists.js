@@ -3,11 +3,15 @@ class Playlists extends React.Component {
         super();
         this.state = {};
     }
+    render() {
+        return (
+            <iframe src={`https://open.spotify.com/embed/playlist/`+getCookie('playlist_id')} width="600" height="800" align="middle" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        )
+    }
+}
     
-  <iframe src="https://open.spotify.com/embed/playlist/0FYV80FmDwFh4rvpknPhR0" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
 
 ReactDOM.render(
-    <Playlist />,
+    <Playlists />,
     document.getElementById('display-playlist')
 );
-

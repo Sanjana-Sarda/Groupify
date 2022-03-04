@@ -1,5 +1,5 @@
 function InviteButton() {
-    return <span onClick={() => document.getElementById("invite-dropdown").classList.toggle("show")} className="noselect invite-button">+</span>
+    return <span onClick={() => document.getElementById("invite-dropdown").classList.toggle("show")} className="noselect invite-button">*</span>
 }
 
 function InviteDropdown() {
@@ -13,6 +13,10 @@ function InviteDropdown() {
             className="copy-button"><img className="copy-img" src="/static/images/copy.png"></img><span>Copy</span></div>
 	    </div>
 	);
+}
+
+function CreatePlaylistButton() {
+    return <a className="create-playlist-button noselect" href='/create-playlist'>Create Playlist</a>;
 }
 
 function CreateButton() {
@@ -117,6 +121,7 @@ function MemberList(props) {
             <div className="member-list-container custom-scrollbar">
                 {elems}
             </div>
+            <CreatePlaylistButton/>
         </div>
     );
 }

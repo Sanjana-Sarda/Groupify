@@ -1,10 +1,10 @@
-{% extends 'playlits.html' %}
+{% extends 'head.html' %}
 {% block head %}
-    <link href="/static/css/home.css" rel="stylesheet">
-    <title>spotify party</title>
+    <link href="/static/css/style.css" rel="stylesheet">
+    <title>Groupify</title>
 {% endblock %}
 
 {% block body %}
-    <div id="home-mount-point"></div>
-    <script src='/static/js/build/home.js'></script>
+    <div id="display-playlist"></div>
+    <script src='/static/js/build/playlists.js'></script>
 {% endblock %}
