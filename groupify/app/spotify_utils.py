@@ -108,9 +108,9 @@ def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_f
     
     return new_dataframe.index
 
-def create_playlist_new(sp, playlist_name, playlist_description):
+def create_playlist_new(sp, playlist_name = "TestPlaylist", playlist_description="Test Playlist"):
     user =  sp.current_user()['id']
-    playlists = sp.user_playlist_create(user,"TestPlaylist", description = "Test Playlist")
+    playlists = sp.user_playlist_create(user,playlist_name, description = playlist_description)
     playlist_id = playlists['id']
     return playlist_id
 
