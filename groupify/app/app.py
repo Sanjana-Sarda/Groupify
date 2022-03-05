@@ -169,7 +169,7 @@ def create_playlist():
     else:
         print("Can't get token for", owner)
 
-    mean_song_audio_features=mean_of_song_features(song_audio_features)
+    mean_song_audio_features=agg_of_song_features(song_audio_features)
 
     normalized_songs=normalize_songs_with_common_user_features(song_audio_features, mean_song_audio_features)
 

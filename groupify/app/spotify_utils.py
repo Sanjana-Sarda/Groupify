@@ -45,8 +45,63 @@ def get_user_top_tracks(sp):
     return df_favorite
 
 
-def fetch_audio_features(sp, df):
-    playlist = df[['track_id','track_name', 'artist_id']] 
+def get_playlists_of_user(sp, username):
+    '''
+    Gets a list of playlists from the user
+    '''
+    id = []
+    name = []
+    num_tracks = []
+ # For looping through the API request  
+    playlists = sp.user_playlists(username)
+    for i, items in enumerate(playlists['items']):
+        id.append(items['id'])
+        name.append(items['name'])
+        num_tracks.append(items['tracks']['total'])
+
+# Create the final df   
+    df_playlists = pd.DataFrame({"id":id, "name": name, "#tracks": num_tracks})
+    return df_playlists
+
+
+
+def fetch_playlist_tracks(sp, playlistsid): 
+    '''
+    Fetches playlist tracks given a playlist id 
+    '''
+    offset = 0
+    tracks = []
+    # Make the API request
+    while True:
+            content = sp.playlist_tracks( playlistsid, fields=None, limit=100, offset=offset, market=None)
+            tracks += content['items']
+        
+            if content['next'] is not None:
+                offset += 100
+            else:
+                break
+    
+    track_id = []
+    track_name = []
+    
+    for track in tracks:
+        track_id.append(track['track']['id'])
+        track_name.append(track['track']['name'])
+    
+# Create the final df
+    df_playlists_tracks = pd.DataFrame({"track_id":track_id, "track_name": track_name})
+    return df_playlists_tracks
+
+
+
+def fetch_audio_features(sp, inp):
+
+    if isinstance(inp, type('')): 
+        playlist = fetch_playlist_tracks(sp, inp)
+    elif isinstance(inp, pd.DataFrame): 
+        df = inp
+        playlist = df[['track_id','track_name', 'artist_id']] 
+
     index = 0
     audio_features = []
     genres = []
@@ -94,8 +149,20 @@ def fetch_audio_features(sp, df):
 
 
 
-def mean_of_song_features(songs_of_all_users):
+
+def agg_of_song_features(songs_of_all_users):
+    '''
+    Given dataframe of song features, calculate median --- This function should be deprecated but keeping it for convenience
+    '''
+    assert isinstance(songs_of_all_users, pd.DataFrame)
     return pd.DataFrame(songs_of_all_users.median(), columns= ['fav_playlist'])
+
+
+def mean_audio_features_playlist(sp, playlist_id):
+    assert isinstance(playlist_id, type(''))
+    Playlist = fetch_audio_features(sp, playlist_id)#df_playlist_audio_features(sp, playlist_id)
+    return pd.DataFrame(Playlist.mean(), columns= [playlist_id])
+
 
 def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_features):
     new_dataframe=songs_of_all_users.subtract(mean_of_song_features.squeeze(), axis=1)
@@ -122,3 +189,32 @@ def enrich_playlist(sp, username, playlist_id, playlist_tracks):
     while index < len(playlist_tracks):
         results += sp.user_playlist_add_tracks(username, playlist_id, tracks = playlist_tracks[index:index + 50])
         index += 50
+
+
+def get_genres(sp, track_ids):
+    genres= set()
+    for track_id in track_ids:
+        genres.update(sp.artist(track_id)['genres'])
+    return genres  
+
+
+
+def get_recently_played_track_ids(sp):
+    results_recents= sp.current_user_recently_played(limit=50)
+    track_id = []
+    for i, items in enumerate(results_recents['items']):
+        track_id.append(items['track']['id'])
+    return track_id
+
+def get_recommendations_tracks_from_genre (sp,genre,popularity=50,limit=100):
+    '''
+    Get Tracks that are most popular given genre
+    '''
+    recos=sp.recommendations(seed_genres=genre,limit=limit, min_popularity=popularity)
+    track_ids=[]
+    for track in recos['tracks']:
+        album_id=track['album']['id']
+        album_tracks=sp.album_tracks(album_id)
+        for track in album_tracks['items']:
+            track_ids.append(track['id'])
+    return track_ids

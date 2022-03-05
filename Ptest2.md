@@ -37,7 +37,12 @@ import traceback
 import matplotlib.pyplot as plt
 %matplotlib inline
 
-from groupify.app.spotify_utils import get_user_top_tracks, fetch_audio_features, enrich_playlist
+
+```
+
+```python
+from groupify.app.spotify_utils import get_user_top_tracks, fetch_audio_features, get_playlists_of_user, fetch_playlist_tracks 
+from groupify.app.spotify_utils import create_playlist_new, enrich_playlist, fetch_playlist_tracks
 ```
 
 ```python
@@ -86,135 +91,31 @@ plt.show()
 ```
 
 ```python
-
-```
-
-```python
-
-```
-
-```python
-
-```
-
-```python
-def featured_playlists(sp, username):
-    '''
-    Gets a list of playlists from the user
-    '''
-    id = []
-    name = []
-    num_tracks = []
- # For looping through the API request  
-    playlists = sp.user_playlists(username)
-    for i, items in enumerate(playlists['items']):
-        id.append(items['id'])
-        name.append(items['name'])
-        num_tracks.append(items['tracks']['total'])
-
-# Create the final df   
-    df_playlists = pd.DataFrame({"id":id, "name": name, "#tracks": num_tracks})
-    return df_playlists
-```
-
-```python
-df_playlists = featured_playlists(sp, creds['username'])
+df_playlists = get_playlists_of_user(sp, username)
 df_playlists
 ```
 
 ```python
-def fetch_playlist_tracks(sp, playlistsid): 
-    '''
-    Fetches playlist tracks given a playlist id 
-    '''
-    offset = 0
-    tracks = []
-    # Make the API request
-    while True:
-            content = sp.playlist_tracks( playlistsid, fields=None, limit=100, offset=offset, market=None)
-            tracks += content['items']
-        
-            if content['next'] is not None:
-                offset += 100
-            else:
-                break
-    
-    track_id = []
-    track_name = []
-    
-    for track in tracks:
-        track_id.append(track['track']['id'])
-        track_name.append(track['track']['name'])
-    
-# Create the final df
-    df_playlists_tracks = pd.DataFrame({"track_id":track_id, "track_name": track_name})
-    return df_playlists_tracks
+
 ```
 
 ```python
-def fetch_audio_features(sp, playlist_id):
-    playlist = fetch_playlist_tracks(sp, playlist_id)
-    index = 0
-    audio_features = []
-    
-    # Make the API request
-    while index < playlist.shape[0]:
-        audio_features += sp.audio_features(playlist.iloc[index:index + 50, 0])
-        index += 50
-    
-    # Create an empty list to feed in different charactieritcs of the tracks
-    features_list = []
-    #Create keys-values of empty lists inside nested dictionary for album
-    for features in audio_features:
-        features_list.append([features['danceability'],
-                              features['acousticness'],
-                              features['energy'], 
-                              features['tempo'],
-                              features['instrumentalness'], 
-                              features['loudness'],
-                              features['liveness'],
-                              features['duration_ms'],
-                              features['key'],
-                              features['valence'],
-                              features['speechiness']
-                             ])
-    
-    df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo', 
-                                                             'instrumentalness', 'loudness', 'liveness', 'duration_ms', 'key',
-                                                             'valence', 'speechiness'])
-    
-    # Create the final df, using the 'track_id' as index for future reference
-    df_playlist_audio_features = pd.concat([playlist, df_audio_features], axis=1)
-    df_playlist_audio_features.set_index('track_name', inplace=True, drop=True)
-    return df_playlist_audio_features
+
 ```
 
 ```python
-# Build the dtaframe froms the playlists
-for i, playlist in enumerate(df_playlists['id']):
-    try:
-        string_command = "df_{} = fetch_audio_features(sp, playlist)".format(playlist)
-        print("Create {}".format(string_command))
-        exec(string_command)
-    except:
-        print("playlist with id {} is not valid, skiping ".format(playlist))
-        pass
+
 ```
 
 ```python
-def fetch_audio_features_mean(sp, playlist_id):
-    Playlist = fetch_audio_features(sp, playlist_id)#df_playlist_audio_features(sp, playlist_id)
-    return pd.DataFrame(Playlist.mean(), columns= [playlist_id])
-```
-
-```python
+from groupify.app.spotify_utils import mean_audio_features_playlist
 # Merge them together
 import numpy
 dataframes = []
 # Loop through the filenames to populate dataframes with different dataframes 
 for  playlist in df_playlists['id']:
     try:
-        mean_df = fetch_audio_features_mean(sp, playlist)
+        mean_df = mean_audio_features_playlist(sp, playlist)
 
         if any(numpy.isnan(mean_df.values)): 
             
@@ -252,12 +153,25 @@ indices = np.argsort(importances)[::-1]
 print("Playlist ranking:")
   
 for f in range(len(importances)):
-    print("%d. %s %f " % (f + 1, 
-            X.columns[indices[f]], 
+    playlist_name = df_playlists[df_playlists['id']==X.columns[indices[f]]]['name'].values[0]
+    
+    print("%d. %s %s %f " % (f + 1, 
+            X.columns[indices[f]],
+            playlist_name,
             importances[indices[f]]))
 ```
 
 ```python
+for i, playlist in enumerate(df_playlists['id']):
+    try:
+        string_command = "df_{} = fetch_audio_features(sp, playlist)".format(playlist)
+        print("Create {}".format(string_command))
+        exec(string_command)
+    except:
+        print("playlist with id {} is not valid, skiping ".format(playlist))
+        pass
+
+
 frames = []
 for i, playlist in enumerate(df_playlists['id']):
     try:
@@ -270,22 +184,24 @@ for i, playlist in enumerate(df_playlists['id']):
 print (frames)
 df =pd.concat(frames)
 df.drop_duplicates()
-df
-```
-
-```python
 df = df.set_index(['track_id'])
+
+
+```
+
+```python
 df
 ```
 
 ```python
-# CO
 Y= Y.squeeze('columns')
-```
-
-```python
 Y = Y.sort_index( axis=0, level=None, ascending=True, inplace=False, kind='quicksort')
 Y
+```
+
+```python
+std_dev = pd.DataFrame(df_fav.std(), columns= ['fav_playlist'])
+std_dev
 ```
 
 ```python
@@ -295,12 +211,13 @@ df1
 ```
 
 ```python
-df1= df1.divide(Y, axis='columns') 
-df1
+## this operation needs to be performed with standard deviation, not median. 
+df1= df1.divide(Y, axis='columns') ## not sure if this has to be fixed!
+# df1
 ```
 
 ```python
-df1 = df1.drop(['instrumentalness'], axis=1)
+# df1 = df1.drop(['instrumentalness'], axis=1)
 ```
 
 ```python
@@ -319,52 +236,15 @@ df2
 ```
 
 ```python
-def create_playlist(sp, username, playlist_name, playlist_description):
-    playlists = sp.user_playlist_create(username, playlist_name, description = playlist_description)
-```
-
-```python
 
 ```
 
 ```python
-create_playlist(sp, username, 'JS Blend2', 'Test playlist created using python!')
+new_playlist_id = create_playlist_new(sp,  'JS Blend2', 'Test playlist created using python!')
 ```
 
 ```python
-def fetch_playlists(sp, username):
-    """
-    Returns the user's playlists.
-    """
-        
-    id = []
-    name = []
-    num_tracks = []
-    
-    # Make the API request
-    playlists = sp.user_playlists(username)
-    for playlist in playlists['items']:
-        id.append(playlist['id'])
-        name.append(playlist['name'])
-        num_tracks.append(playlist['tracks']['total'])
-
-    # Create the final df   
-    df_playlists = pd.DataFrame({"id":id, "name": name, "#tracks": num_tracks})
-    return df_playlists
-```
-
-```python
-fetch_playlists(sp,username)
-```
-
-```python
-def enrich_playlist(sp, username, playlist_id, playlist_tracks):
-    index = 0
-    results = []
-    
-    while index < len(playlist_tracks):
-        results += sp.user_playlist_add_tracks(username, playlist_id, tracks = playlist_tracks[index:index + 50])
-        index += 50
+get_playlists_of_user(sp,username)
 ```
 
 ```python
@@ -372,11 +252,15 @@ list_track = df2.index
 ```
 
 ```python
-enrich_playlist(sp, username, '', list_track) #playlist id
+enrich_playlist(sp, username, new_playlist_id, list_track) #playlist id
 ```
 
 ```python
-fetch_playlists(sp,username)
+get_playlists_of_user(sp,username)
+```
+
+```python
+fetch_playlist_tracks(sp, new_playlist_id)
 ```
 
 ```python
