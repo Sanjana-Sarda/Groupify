@@ -137,13 +137,17 @@ def create_playlist():
     owner = request.cookies.get('username')
     if not owner: 
         return redirect('/login?redirect=create')
+    party_id = request.referrer[28:]
+    checkjson('parties')
+    party_users = list(readjson(party_json)[party_id]['members'].keys())
     checkjson('userdata')
     users = readjson(user_json)
 
     number_of_users=len(users)
     songs_of_all_users=[]
-    for user in users:
-        token = users[user]['token']#'6Fu7clVzrnvLUBC0YbxDrN'#
+    for user in party_users:
+        print (user)
+        token = users[user]['token']
         if token:
             sp = spotipy.Spotify(auth=token)
         else:
