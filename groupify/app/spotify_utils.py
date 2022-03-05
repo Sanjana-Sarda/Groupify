@@ -1,7 +1,52 @@
 import pandas as pd
 import numpy as np
 
+def get_user_profile(sp):
+    results_favorite= sp.current_user_top_tracks(limit=25, offset=0,time_range='medium_term')
+    results_recents= sp.current_user_recently_played(limit=25)
+    
+    track_name = []
+    track_id = []
+    artist = []
+    artist_id = []
+    album = []
+    duration = []
+    popularity = []
+    genres= set()
+    
+    for i, items in enumerate(results_favorite['items']):
+        track_name.append(items['name'])
+        track_id.append(items['id'])
+        artist.append(items["artists"][0]["name"])
+        artist_id.append(items["artists"][0]["id"])
+        genres.update(sp.artist(items["artists"][0]["id"])['genres'])
+        duration.append(items["duration_ms"])
+        album.append(items["album"]["name"])
+        popularity.append(items["popularity"])
+        
+    for i, items in enumerate(results_recents['items']):
+        track_name.append(items['track']['name'])
+        track_id.append(items['track']['id'])
+        artist.append(items['track']["artists"][0]["name"])
+        artist_id.append(items['track']["artists"][0]["id"])
+        genres.update(sp.artist(items['track']["artists"][0]["id"])['genres'])
+        duration.append(items['track']["duration_ms"])
+        album.append(items['track']["album"]["name"])
+        popularity.append(items['track']["popularity"])
+        
+        
+    df_user = pd.DataFrame({ "track_name": track_name, 
+                             "album": album, 
+                             "track_id": track_id,
+                             "artist": artist, 
+                             "artist_id": artist_id,
+                             "duration": duration, 
+                             "popularity": popularity})
+    
+    df_user.drop_duplicates(keep='first',inplace=True)
+    return df_user, genres
 
+    
 def get_user_top_tracks(sp):
     '''
     Given user auth, get a combination of users top tracks and recently played music 
