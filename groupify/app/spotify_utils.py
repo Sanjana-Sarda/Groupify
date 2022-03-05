@@ -3,7 +3,21 @@ import numpy as np
 
 
 def get_user_top_tracks(sp):
-    results = sp.current_user_top_tracks(limit=50, offset=0,time_range='medium_term')
+    '''
+    Given user auth, get a combination of users top tracks and recently played music 
+    '''
+
+    results_top_tracks = sp.current_user_top_tracks(limit=25, offset=0,time_range='medium_term')
+    results_recently_played = sp.current_user_recently_played(limit=25)
+    all_results = {}
+    all_results['items'] = results_top_tracks['items']
+    print(type(all_results['items']))
+    for ind, item in enumerate(results_recently_played['items']): 
+        all_results['items'] = all_results['items'] + [results_recently_played['items'][ind]['track']]
+
+    # all_results['items'] += results_try['items']
+    results = all_results
+
     track_name = []
     track_id = []
     artist = []
@@ -94,7 +108,7 @@ def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_f
     
     return new_dataframe.index
 
-def create_playlist(sp, playlist_name, playlist_description):
+def create_playlist_new(sp, playlist_name, playlist_description):
     user =  sp.current_user()['id']
     playlists = sp.user_playlist_create(user,"TestPlaylist", description = "Test Playlist")
     playlist_id = playlists['id']

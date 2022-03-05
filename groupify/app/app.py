@@ -24,7 +24,9 @@ app = Flask(__name__, static_folder="static")
 path = os.path.dirname(os.path.abspath(__file__))
 socketio = SocketIO(app)
 socketio.init_app(app, cors_allowed_origins="*")
-scopes  = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
+scopes  = 'user-read-playback-state user-read-recently-played user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
+scopes = scopes + ' user-follow-read user-library-read playlist-read-collaborative'
+
 user_json = os.path.join(path, 'json', 'userdata.json')
 party_json = os.path.join(path, 'json', 'parties.json')
 
@@ -144,7 +146,8 @@ def create_playlist():
     party_users = list(readjson(party_json)[party_id]['members'].keys())
     checkjson('userdata')
     users = readjson(user_json)
-
+    import ipdb
+    ipdb.set_trace()
     number_of_users=len(users)
     songs_of_all_users=[]
     for user in party_users:
@@ -170,7 +173,7 @@ def create_playlist():
 
     normalized_songs=normalize_songs_with_common_user_features(song_audio_features, mean_song_audio_features)
 
-    id = create_playlist(sp_owner, 'JS Blend', 'Test playlist created using python!')
+    id = create_playlist_new(sp_owner, 'JS Blend', 'Test playlist created using python!')
     enrich_playlist(sp_owner, owner, id, normalized_songs)
     resp = make_response(render_template('playlists.html', host=request.host))
     resp.set_cookie('playlist_id', id)
