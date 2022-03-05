@@ -39,22 +39,22 @@ import matplotlib.pyplot as plt
 ```
 
 ```python
+# constants
+redirect_uri = 'https://example.com'
+```
+
+```python
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy.util as util
 
-if os.path.exists('resources/creds.json'): 
-    creds = json.load(open('resources/creds.json'))
-else:
-    print('Aborting authentication; cannot go further')
+import groupify.app.psecrets as psecrets
+
 try: 
-    cid = creds['cid']
-    secret = creds['secret']
-    username= creds['username']
-    redirect_uri = creds['redirect_uri']
-
-
-    # Once the Authorisation is complete, we just need to `sp` to call the APIs
+    cid = psecrets.client_id
+    secret = psecrets.secret
+    userdata = json.load(open('groupify/app/json/userdata.json', 'r'))
+    username = list(userdata.keys())[0]
     scope = 'user-top-read user-read-recently-played user-follow-read playlist-modify-public user-library-read playlist-read-collaborative'
     token = util.prompt_for_user_token(username, scope, client_id=cid, client_secret=secret, redirect_uri=redirect_uri)
 
@@ -64,7 +64,7 @@ try:
         print("Can't get token for", username)
 except: 
     print(traceback.format_exc(5))
-    print("Input credential information in resources/creds.json, and try again")
+
 ```
 
 ```python
@@ -83,7 +83,7 @@ results_top_tracks = sp.current_user_top_tracks(limit=25, offset=0,time_range='m
 results_recently_played = sp.current_user_recently_played(limit=25)
 all_results = {}
 all_results['items'] = results_top_tracks['items']
-print(type(results['items']))
+print(type(all_results['items']))
 for ind, item in enumerate(results_recently_played['items']): 
     all_results['items'] = all_results['items'] + [results_recently_played['items'][ind]['track']]
 
