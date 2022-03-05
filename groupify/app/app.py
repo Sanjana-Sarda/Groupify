@@ -139,13 +139,17 @@ def create_playlist():
     owner = request.cookies.get('username')
     if not owner: 
         return redirect('/login?redirect=create')
+    party_id = request.referrer[28:]
+    checkjson('parties')
+    party_users = list(readjson(party_json)[party_id]['members'].keys())
     checkjson('userdata')
     users = readjson(user_json)
 
     number_of_users=len(users)
     songs_of_all_users=[]
-    for user in users:
-        token = users[user]['token']#'6Fu7clVzrnvLUBC0YbxDrN'#
+    for user in party_users:
+        print (user)
+        token = users[user]['token']
         if token:
             sp = spotipy.Spotify(auth=token)
         else:
@@ -191,8 +195,6 @@ def party(name):
             resp.set_cookie('party_id', name)
             return resp
     resp = make_response(render_template('party_member.html', host=request.host, party_host=parties[name]['owner']))
-    if not readjson(user_json)[username]['premium']:
-        resp = make_response(render_template('not_premium.html', host=request.host))
     return resp
 
 @app.route('/end/<name>')
