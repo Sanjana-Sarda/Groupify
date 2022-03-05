@@ -189,8 +189,6 @@ def party(name):
             resp.set_cookie('party_id', name)
             return resp
     resp = make_response(render_template('party_member.html', host=request.host, party_host=parties[name]['owner']))
-    if not readjson(user_json)[username]['premium']:
-        resp = make_response(render_template('not_premium.html', host=request.host))
     return resp
 
 @app.route('/end/<name>')
