@@ -56,6 +56,7 @@ function CreatePlaylistButton() {
           <h3 style={{ color: "white", fontSize: "26px", fontWeight: "bold" }}>
             LOADING
           </h3>
+          <img id="loading-gif" src="/static/images/loadingimage.gif" />
         </div>
       )}
       <a
