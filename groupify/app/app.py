@@ -13,6 +13,10 @@ import spotipy.util as util
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
+from operator import itemgetter
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+from sklearn.utils import shuffle
 
 try:
     from .psecrets import client_id, secret
@@ -23,7 +27,7 @@ app = Flask(__name__, static_folder="static")
 path = os.path.dirname(os.path.abspath(__file__))
 socketio = SocketIO(app)
 socketio.init_app(app, cors_allowed_origins="*")
-scopes  = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
+scopes  = 'user-read-playback-state user-read-recently-played user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
 user_json = os.path.join(path, 'json', 'userdata.json')
 party_json = os.path.join(path, 'json', 'parties.json')
 
@@ -146,8 +150,10 @@ def create_playlist():
 
     number_of_users=len(users)
     songs_of_all_users=[]
+    user_str = ""
     for user in party_users:
         print (user)
+        user_str += user+ " + "
         token = users[user]['token']
         if token:
             sp = spotipy.Spotify(auth=token)
@@ -155,26 +161,23 @@ def create_playlist():
             print("Can't get token for", owner)
         songs_of_all_users.append(fetch_playlists(sp, users[user]['link'][30:]))
         #songs_of_all_users.append(get_user_top_tracks(sp))
+
     songs_df = pd.concat(songs_of_all_users)
-    songs_df.drop_duplicates(inplace=True)
-    songs_df.dropna(inplace=True)
-    #song_audio_features=fetch_audio_features(sp, songs_df)
-    preprocess(songs_df).to_csv('test.csv')  
+    song_audio_features=fetch_audio_features_playlist(sp, songs_df)
+    songs_df = preprocess(song_audio_features)
     
+    playlist_tracks = model(songs_df)
+                      
     owner_token = users[owner]['token']
     if owner_token:
             sp_owner = spotipy.Spotify(auth=owner_token)
     else:
         print("Can't get token for", owner)
-
-    #mean_song_audio_features=mean_of_song_features(songs_df)
-
-    #normalized_songs=normalize_songs_with_common_user_features(song_audio_features, mean_song_audio_features)
-
-    #id = create_playlist(sp_owner, 'JS Blend', 'Test playlist created using python!')
-    #enrich_playlist(sp_owner, owner, id, normalized_songs)
+    
+    id = create_playlist(sp_owner, user_str[:-2] +'Blend')
+    enrich_playlist(sp_owner, owner, id, playlist_tracks)
     resp = make_response(render_template('playlists.html', host=request.host))
-    #resp.set_cookie('playlist_id', id)
+    resp.set_cookie('playlist_id', id)
     return resp
     #return "200"
 
@@ -302,26 +305,22 @@ def update(data):
     print(json.dumps(ret_data, indent=2))
     emit('update', ret_data, room=data['party_id'])
     
+   
+   
     
 def fetch_playlists(sp, username):
-    '''
-    Gets a list of playlists from the user
-    '''
     id = []
     name = []
     num_tracks = []
- # For looping through the API request  
     playlists = sp.user_playlists(username)
     for i, items in enumerate(playlists['items']):
         id.append(items['id'])
         name.append(items['name'])
         num_tracks.append(items['tracks']['total'])
-
-# Create the final df   
     df_playlists = pd.DataFrame({"id":id, "name": name, "#tracks": num_tracks})
     for i, playlist in enumerate(df_playlists['id']):
         try:
-            string_command = "df_{} = fetch_audio_features_playlist(sp, playlist)".format(playlist)
+            string_command = "df_{} = fetch_playlist_tracks(sp, playlist)".format(playlist)
             exec(string_command)
         except:
             pass
@@ -332,17 +331,40 @@ def fetch_playlists(sp, username):
             exec(string_command)
         except:
             pass
+    frames.append(fetch_tracks(sp))
     df =pd.concat(frames)
     return df
+
+
+def fetch_tracks(sp):
+    results_recently_played = sp.current_user_recently_played(limit=25)['items']
+    track_name = []
+    track_id = []
+    artist = []
+    artist_id = []
+    duration = []
+    popularity = []
+    for i, items in enumerate(results_recently_played):
+        track_name.append(items['track']['name'])
+        track_id.append(items['track']['id'])
+        artist.append(items['track']["artists"][0]["name"])
+        artist_id.append(items['track']["artists"][0]["id"])
+        duration.append(items['track']["duration_ms"])
+        popularity.append(items['track']["popularity"])
+
+    df_playlist_tracks = pd.DataFrame({ "track_name": track_name, 
+    "track_id": track_id,
+    "artist": artist,
+    "artist_id": artist_id,
+    "duration": duration,
+    "popularity": popularity})
+    df_playlist_tracks= df_playlist_tracks.assign(user_id=sp.current_user()['id'])
+    return df_playlist_tracks
     
 
 def fetch_playlist_tracks(sp, playlistsid): 
-    '''
-    Fetches playlist tracks given a playlist id 
-    '''
     offset = 0
     tracks = []
-    # Make the API request
     while True:
         content = sp.playlist_tracks( playlistsid, fields=None, limit=100, offset=offset, market=None)
         tracks += content['items']
@@ -355,7 +377,6 @@ def fetch_playlist_tracks(sp, playlistsid):
     track_id = []
     artist = []
     artist_id = []
-    album = []
     duration = []
     popularity = []
     for i, items in enumerate(tracks):
@@ -364,28 +385,35 @@ def fetch_playlist_tracks(sp, playlistsid):
         artist.append(items['track']["artists"][0]["name"])
         artist_id.append(items['track']["artists"][0]["id"])
         duration.append(items['track']["duration_ms"])
-        album.append(items['track']["album"]["name"])
         popularity.append(items['track']["popularity"])
-    
-# Create the final df
+
     df_playlist_tracks = pd.DataFrame({ "track_name": track_name, 
-    "album": album,
     "track_id": track_id,
     "artist": artist,
     "artist_id": artist_id,
     "duration": duration,
     "popularity": popularity})
     df_playlist_tracks= df_playlist_tracks.assign(user_id=sp.current_user()['id'])
-    df_playlist_tracks.drop_duplicates(inplace=True)
+    #df_playlist_tracks.drop_duplicates(inplace=True)
     return df_playlist_tracks
 
-def fetch_audio_features_playlist(sp, playlist_id):
-    playlist = fetch_playlist_tracks(sp, playlist_id)
+
+def fetch_audio_features_playlist(sp, playlist):
+    #playlist = fetch_playlist_tracks(sp, playlist_id)
+    playlist = playlist.reset_index(drop=True)
     index = 0
     audio_features = []
     # Make the API request
     while index < playlist.shape[0]:
-        audio_features += sp.audio_features(playlist.iloc[index:index + 50, 2])
+        audio_features += sp.audio_features(playlist.iloc[index:index + 50, 1])
+        index += 50
+    
+    genres = []
+    index = 0
+    while index < playlist.shape[0]:
+        #print(sp.artists( playlist.iloc[index:index+50, 3])['artists'])
+        genres += list(map(itemgetter('genres'), sp.artists( playlist.iloc[index:index+50, 3])['artists']))
+       # genres += [sp.artists( playlist.iloc[index:index+50, 3])['genres']]
         index += 50
     # Create an empty list to feed in different charactieritcs of the tracks
     features_list = []
@@ -408,111 +436,101 @@ def fetch_audio_features_playlist(sp, playlist_id):
     df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo', 
                                                              'instrumentalness', 'loudness', 'liveness', 'duration_ms', 'key',
                                                              'valence', 'speechiness', 'mode'])
-    
     # Create the final df, using the 'track_id' as index for future reference
+    df_audio_features['genres'] = genres
+    df_audio_features = fix_genres(df_audio_features)
+    
     df_playlist_audio_features = pd.concat([playlist, df_audio_features], axis=1)
     df_playlist_audio_features.set_index('track_id', inplace=True, drop=True)
     return df_playlist_audio_features
 
 
-def fetch_audio_features(sp, df):
-    playlist = df[['track_id','track_name', 'artist_id']] 
-    index = 0
-    audio_features = []
-    genres = []
-    
-    # Make the API request
-    while index < playlist.shape[0]:
-        audio_features += sp.audio_features(playlist.iloc[index:index + 50, 0])
-        index += 50
-        
-    index = 0
-    #while index < playlist.shape[0]:
-     #   genres += [sp.artist('spotify:artist:'+ playlist.iloc[index, 2])['genres']]
-      #  index += 1
-    
-    # Create an empty list to feed in different charactieritcs of the tracks
-    features_list = []
-    #Create keys-values of empty lists inside nested dictionary for album
-    for features in audio_features:
-        features_list.append([features['danceability'],
-        features['acousticness'],
-        features['energy'],
-        features['tempo'],
-        features['instrumentalness'],
-        features['loudness'],
-        features['liveness'],
-        features['duration_ms'],
-        features['key'],
-        features['valence'],
-        features['speechiness'],
-        features['mode']])
-    
-    df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo',
-    'instrumentalness', 'loudness', 'liveness','duration_ms', 'key',
-    'valence', 'speechiness', 'mode'])
-    
-    #df_audio_features['genres'] = genres
-    df_audio_features['track_id'] = playlist['track_id'].values
-    df_audio_features['user_id'] = df['user_id'].values
-    # Create the final df, using the 'track_id' as index for future reference
-    #df_playlist_audio_features = pd.concat([playlist, df_audio_features], axis=0)
-    #df_playlist_audio_features.set_index('track_name', inplace=True, drop=True)
-    df_audio_features.set_index('track_id', inplace=True, drop=True)
-    return df_audio_features#df_playlist_audio_features
+def fix_genres(df):
+    v = df.genres.values
+    l = [len(x) for x in v.tolist()]
+    f, u = pd.factorize(np.concatenate(v))
+    n, m = len(v), u.size
+    i = np.arange(n).repeat(l)
+
+    dummies = pd.DataFrame(
+        np.bincount(i * m + f, minlength=n * m).reshape(n, m),
+        df.index, u
+    )
+    return df.drop('genres', 1).join(dummies)
 
 
 def preprocess(df):
-    #Selecting numerical variables
     nds = df.select_dtypes(include=['float64',"int64"])
-    print (nds)
     numerical_features = ['danceability', 'acousticness', 'energy', 'instrumentalness','liveness','valence']
-
-    ##Features to scale
-    #features_to_be_scaled=nds.drop(columns=['danceability', 'acousticness', 'energy', 'instrumentalness','liveness','valence','mode'])
     features_to_be_scaled=nds.drop(columns=numerical_features)
-
-
-    #Scaling Numerical variables
     scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
-
-    #Applying scaler on our data and converting i into a data frame
     ndsmx = pd.DataFrame((scaler.fit_transform(features_to_be_scaled)))
     ndsmx.columns=features_to_be_scaled.columns 
     normalized_data_set=pd.concat([df[numerical_features].reset_index(drop=True),ndsmx.reset_index(drop=True)],axis=1)
     normalized_data_set['instrumentalness'] = np.where((normalized_data_set.instrumentalness <(10**(-3))), 0, normalized_data_set.instrumentalness)
+    thresh = 100    
+
+    to_drop = normalized_data_set.eq(0).rolling(thresh).sum().eq(thresh).any()
+    normalized_data_set = normalized_data_set.loc[:, ~to_drop]
+
     normalized_data_set.set_index(df.index, inplace=True)
     normalized_data_set['user_id'] = df.user_id
     return normalized_data_set
 
-def mean_of_song_features(songs_of_all_users):
-    return pd.DataFrame(songs_of_all_users.median(), columns= ['fav_playlist'])
 
-def normalize_songs_with_common_user_features(songs_of_all_users, mean_of_song_features):
-    new_dataframe=songs_of_all_users.subtract(mean_of_song_features.squeeze(), axis=1)
-    new_dataframe.divide(mean_of_song_features, axis='columns')
-    new_dataframe.drop(['instrumentalness'], axis=1)
-    new_dataframe['variation'] = new_dataframe.sum(axis=1)
-    new_dataframe['variation'] = new_dataframe['variation'].abs()
-    new_dataframe = new_dataframe.drop_duplicates()
-    new_dataframe=new_dataframe.nsmallest(50,'variation', keep='first')
-    
-    return new_dataframe.index
+def model (df1):
+    df, n_clusters = kmeans(df1.iloc[: , :-1])
+    final = list()
+    df1 = df1[~df1.index.duplicated(keep='first')]
+    for cluster in range(n_clusters):
+        df2 = df.loc[df['cluster'] == cluster+1]
+        df2, n1_clusters = kmeans(df2.iloc[:,:-1])
+        df2['user_id']= df1.loc[df2.index.values]['user_id'].values
+        final.append(df2.loc[df2['cluster']==(pick_cluster(df2, n1_clusters))])
+    x = 50/sum(len(d) for d in final)
+    tracks = []
+    for cluster in range(n_clusters):
+        tracks.append(final[cluster].groupby('user_id').sample(frac=x))
+    return pd.concat(tracks)
+        
+        
+def kmeans(df):
+    silhouette_avg = []
+    for num_clusters in range(2, 6):
+        kmeans = KMeans(n_clusters=num_clusters)
+        kmeans.fit(df)
+        cluster_labels = kmeans.labels_
+        silhouette_avg.append(silhouette_score(df, cluster_labels))
+    n_clusters = np.argmax(silhouette_avg)+2
+    kmeans = KMeans(n_clusters = n_clusters, init = 'k-means++', random_state = 42)
+    y_kmeans = kmeans.fit_predict(df)+1
+    df['cluster'] = y_kmeans
+    return df, n_clusters
 
-def create_playlist(sp, playlist_name, playlist_description):
+
+def pick_cluster(df2, n1_clusters):
+    p = 1
+    o = 1
+    for cluster in range(n1_clusters):
+        val =  df2[df2['cluster']==cluster+1]['user_id'].value_counts(normalize=True)[0]
+        if (val<p):
+            p = val
+            o = cluster+1
+    return o
+
+
+def create_playlist(sp, playlist_name='TestPlaylist', playlist_description='Groupify Blend'):
     user =  sp.current_user()['id']
-    playlists = sp.user_playlist_create(user,"TestPlaylist", description = "Test Playlist")
+    playlists = sp.user_playlist_create(user,playlist_name, description = playlist_description)
     playlist_id = playlists['id']
     return playlist_id
 
 
 def enrich_playlist(sp, username, playlist_id, playlist_tracks):
     index = 0
-    results = []
-    
-    while index < len(playlist_tracks):
-        results += sp.user_playlist_add_tracks(username, playlist_id, tracks = playlist_tracks[index:index + 50])
-        index += 50
+    playlist_tracks = shuffle(playlist_tracks)
+    sp.user_playlist_add_tracks(username, playlist_id, tracks = playlist_tracks.index.values)
+
 
 
 if __name__ == '__main__':
