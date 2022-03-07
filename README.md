@@ -17,7 +17,7 @@ $ npm install
 $ cd js
 $ npx babel --watch . --out-dir ../static/js/build --presets react-app/prod
 ```
-- Make `app/secrets.py`
+- Make `app/psecrets.py`
 ```python
 # spotify client and secret id (https://developer.spotify.com/dashboard)
 client_id = 'your_client_id'
