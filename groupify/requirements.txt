@@ -4,3 +4,10 @@ flask-socketio==4.3.2
 eventlet 
 requests
 gevent-websocket
+librosa==0.9.1
+numpy==1.18.5
+pandas==1.1.1
+scikit_learn==1.0.2
+spotipy==2.19.0
+Werkzeug==2.0.2
+wget==3.2
