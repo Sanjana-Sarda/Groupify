@@ -5,7 +5,7 @@ function InviteButton() {
 function InviteDropdown() {
 	return (
 	    <div id="invite-dropdown" className="dropdown-content">
-            <input spellCheck="false" readOnly={true} id="link-input" value={location.protocol + "//" + window.location.hostname + "/party/" + getCookie("party_id")}></input>
+            <input spellCheck="false" readOnly={true} id="link-input" value={getCookie("party_id")}></input>
             <div onClick={() => {
                 document.getElementById("link-input").select();
                 document.execCommand("copy");
@@ -36,6 +36,7 @@ class JoinBox extends React.Component {
     }
     submit() {
         if (this.state.code) {    
+            console.log(this.state.code)
             window.location.pathname = '/party/' + this.state.code;
         }
     }
