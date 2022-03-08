@@ -1,5 +1,6 @@
 from importlib.machinery import DEBUG_BYTECODE_SUFFIXES
 from statistics import mean
+import traceback
 from flask import Flask, render_template, request, abort, make_response, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room, send
 from werkzeug.exceptions import HTTPException
@@ -19,6 +20,9 @@ from sklearn.cluster import KMeans
 from sklearn.utils import shuffle
 
 from spotify_utils import *
+from feature_engineering_utils import *
+
+# import ipdb
 
 try:
     from .psecrets import client_id, secret
@@ -151,8 +155,8 @@ def create_playlist():
     party_users = list(readjson(party_json)[party_id]['members'].keys())
     checkjson('userdata')
     users = readjson(user_json)
-    import ipdb
-    ipdb.set_trace()
+    # import ipdb
+    # ipdb.set_trace()
     number_of_users=len(users)
     songs_of_all_users=[]
     user_str = ""
@@ -169,8 +173,10 @@ def create_playlist():
 
     songs_df = pd.concat(songs_of_all_users)
     song_audio_features=fetch_audio_features_playlist(sp, songs_df)
+    # ipdb.set_trace()
     songs_df = preprocess(song_audio_features)
-    
+    # ipdb.set_trace()
+
     playlist_tracks = model(songs_df)
                       
     owner_token = users[owner]['token']
@@ -405,43 +411,87 @@ def fetch_playlist_tracks(sp, playlistsid):
 
 def fetch_audio_features_playlist(sp, playlist):
     #playlist = fetch_playlist_tracks(sp, playlist_id)
+    use_all_features = True
+
     playlist = playlist.reset_index(drop=True)
-    index = 0
-    audio_features = []
-    # Make the API request
-    while index < playlist.shape[0]:
-        audio_features += sp.audio_features(playlist.iloc[index:index + 50, 1])
-        index += 50
-    
-    genres = []
-    index = 0
-    while index < playlist.shape[0]:
-        #print(sp.artists( playlist.iloc[index:index+50, 3])['artists'])
-        genres += list(map(itemgetter('genres'), sp.artists( playlist.iloc[index:index+50, 3])['artists']))
-       # genres += [sp.artists( playlist.iloc[index:index+50, 3])['genres']]
-        index += 50
-    # Create an empty list to feed in different charactieritcs of the tracks
-    features_list = []
-    #Create keys-values of empty lists inside nested dictionary for album
-    for features in audio_features:
-        features_list.append([features['danceability'],
-                              features['acousticness'],
-                              features['energy'], 
-                              features['tempo'],
-                              features['instrumentalness'], 
-                              features['loudness'],
-                              features['liveness'],
-                              features['duration_ms'],
-                              features['key'],
-                              features['valence'],
-                              features['speechiness'],
-                              features['mode']
-                             ])
-    
-    df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo', 
-                                                             'instrumentalness', 'loudness', 'liveness', 'duration_ms', 'key',
-                                                             'valence', 'speechiness', 'mode'])
-    # Create the final df, using the 'track_id' as index for future reference
+
+
+    if use_all_features: 
+        # ipdb.set_trace()
+        genres = []
+        index = 0
+        while index < playlist.shape[0]:
+            try: 
+                #print(sp.artists( playlist.iloc[index:index+50, 3])['artists'])
+                genres += list(map(itemgetter('genres'), sp.artists( playlist.iloc[index:index+50, 3])['artists']))
+            # genres += [sp.artists( playlist.iloc[index:index+50, 3])['genres']]
+                index += 50
+            except AttributeError as ae: 
+                ## hack fixing bug that happens when trackid = None
+                print(traceback.print_exc(5))
+                index += 50
+                continue
+        trackids = playlist.iloc[index:index + 50, 1].values.tolist()
+        # ipdb.set_trace()
+        df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True)
+
+        # ipdb.set_trace()
+
+    else: 
+
+        index = 0
+        audio_features = []
+        # Make the API request
+        # ipdb.set_trace()
+        while index < playlist.shape[0]:
+            try: 
+                audio_features += sp.audio_features(playlist.iloc[index:index + 50, 1])
+                index += 50
+            except AttributeError as ae: 
+                ## hack fixing bug that happens when trackid = None
+                print(traceback.print_exc(5))
+                index += 50
+                continue
+
+        # ipdb.set_trace()
+        genres = []
+        index = 0
+        while index < playlist.shape[0]:
+            try: 
+                #print(sp.artists( playlist.iloc[index:index+50, 3])['artists'])
+                genres += list(map(itemgetter('genres'), sp.artists( playlist.iloc[index:index+50, 3])['artists']))
+            # genres += [sp.artists( playlist.iloc[index:index+50, 3])['genres']]
+                index += 50
+            except AttributeError as ae: 
+                ## hack fixing bug that happens when trackid = None
+                print(traceback.print_exc(5))
+                index += 50
+                continue
+
+        # ipdb.set_trace()
+        # Create an empty list to feed in different charactieritcs of the tracks
+        features_list = []
+        #Create keys-values of empty lists inside nested dictionary for album
+        for features in audio_features:
+            features_list.append([features['danceability'],
+                                features['acousticness'],
+                                features['energy'], 
+                                features['tempo'],
+                                features['instrumentalness'], 
+                                features['loudness'],
+                                features['liveness'],
+                                features['duration_ms'],
+                                features['key'],
+                                features['valence'],
+                                features['speechiness'],
+                                features['mode']
+                                ])
+        
+        df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo', 
+                                                                'instrumentalness', 'loudness', 'liveness', 'duration_ms', 'key',
+                                                                'valence', 'speechiness', 'mode'])
+        # Create the final df, using the 'track_id' as index for future reference
+    # ipdb.set_trace()
     df_audio_features['genres'] = genres
     df_audio_features = fix_genres(df_audio_features)
     
@@ -493,6 +543,7 @@ def model (df1):
         df2['user_id']= df1.loc[df2.index.values]['user_id'].values
         final.append(df2.loc[df2['cluster']==(pick_cluster(df2, n1_clusters))])
     x = 50/sum(len(d) for d in final)
+    x = min(1, x)
     tracks = []
     for cluster in range(n_clusters):
         tracks.append(final[cluster].groupby('user_id').sample(frac=x))

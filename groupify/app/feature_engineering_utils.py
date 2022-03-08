@@ -134,7 +134,7 @@ def gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perfor
         print('processing track ', t_id, '{f} out of {e}'.format(f=ind, e=len(trackids)))
         features_all_tracks.append(get_extensive_audio_features(sp, t_id, pvalues= [10,25,50,75,90], perform_dsp = perform_dsp, return_basic_features = return_basic_features))
 
-    df_audio_extra = pandas.DataFrame(features_all_tracks)
+    df_audio_extra = pandas.DataFrame(features_all_tracks).fillna(0)
     return df_audio_extra
 
 
