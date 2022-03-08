@@ -251,7 +251,7 @@ def get_recently_played_track_ids(sp):
         track_id.append(items['track']['id'])
     return track_id
 
-def get_recommendations_tracks_from_genre (sp,genre,popularity=50,limit=100):
+def get_recommendations_tracks_from_genre (sp,genre,popularity=50,limit=50):
     '''
     Get Tracks that are most popular given genre
     '''
