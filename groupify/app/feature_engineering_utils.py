@@ -39,7 +39,7 @@ def get_genre_from_track(sp, trackid, limit=1):
     else: 
         return []
 
-def get_audio_df(sp, trackids, numerical_features, categorical_features): 
+def get_audio_df(sp, trackids): 
 
     feature_df = pandas.DataFrame(sp.audio_features(trackids))
     feature_df = feature_df[numerical_features + categorical_features ]
