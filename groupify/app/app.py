@@ -431,7 +431,7 @@ def fetch_audio_features_playlist(sp, playlist):
                 print(traceback.print_exc(5))
                 index += 50
                 continue
-        trackids = playlist.iloc[index:index + 50, 1].values.tolist()
+        trackids = playlist.iloc[:, 1].values.tolist()
         # ipdb.set_trace()
         df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True)
 
