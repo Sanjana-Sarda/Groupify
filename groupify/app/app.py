@@ -24,6 +24,8 @@ from feature_engineering_utils import *
 
 # import ipdb
 
+import argparse
+
 try:
     from .psecrets import client_id, secret
 except:
@@ -40,6 +42,12 @@ user_json = os.path.join(path, 'json', 'userdata.json')
 party_json = os.path.join(path, 'json', 'parties.json')
 
 debug = True
+
+
+parser = argparse.ArgumentParser('What algorithm to run?')
+parser.add_argument('--algo', type=int, help = '0. numerical features + genre, 1. audio analysis + genre, 3. DSP + audio analysis + genre ', default=1)
+args = parser.parse_args()
+algo_choice = int(args.algo)
 
 if __name__ =='__main__':
     debug = True
@@ -178,7 +186,12 @@ def create_playlist():
     # ipdb.set_trace()
 
     playlist_tracks = model(songs_df)
-                      
+
+    # import ipdb
+    # ipdb.set_trace()
+    
+    # playlist_tracks = sp.recommendations(seed_tracks = playlist_tracks.indexes.tolist(), limit = 100)
+
     owner_token = users[owner]['token']
     if owner_token:
             sp_owner = spotipy.Spotify(auth=owner_token)
@@ -411,11 +424,14 @@ def fetch_playlist_tracks(sp, playlistsid):
 
 def fetch_audio_features_playlist(sp, playlist):
     #playlist = fetch_playlist_tracks(sp, playlist_id)
-    use_all_features = True
+    if algo_choice >=2: 
+        use_all_features = True
+    else: 
+        use_all_features = False
 
     playlist = playlist.reset_index(drop=True)
 
-
+    # import ipdb
     if use_all_features: 
         # ipdb.set_trace()
         genres = []
@@ -432,9 +448,34 @@ def fetch_audio_features_playlist(sp, playlist):
                 index += 50
                 continue
         trackids = playlist.iloc[:, 1].values.tolist()
-        # ipdb.set_trace()
-        df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True)
 
+
+        from joblib import parallel_backend
+        from joblib import Parallel, delayed
+
+        if algo_choice == 2: 
+            #import ipdb
+            #ipdb.set_trace()
+            import time
+            now = time.time()
+            with parallel_backend('threading', n_jobs=2):
+                testdicts=Parallel()(delayed(get_extensive_audio_features)(sp, track) for track in trackids)
+            df_audio_features = pandas.DataFrame(testdicts).fillna(0)
+            print(time.time()- now)
+            #ipdb.set_trace()
+
+            # df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True)
+        elif algo_choice == 3:
+            df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = True, return_basic_features = True)
+        else: 
+            print('invalid algo choice/ unable to parse')
+
+        # if algo_choice == 2: 
+        #    df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True)
+        # elif algo_choice == 3:
+        #    df_audio_features = gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = True, return_basic_features = True)
+        # else: 
+        #    print('invalid algo choice/ unable to parse')
         # ipdb.set_trace()
 
     else: 
@@ -490,6 +531,7 @@ def fetch_audio_features_playlist(sp, playlist):
         df_audio_features = pd.DataFrame(features_list, columns=['danceability', 'acousticness', 'energy','tempo', 
                                                                 'instrumentalness', 'loudness', 'liveness', 'duration_ms', 'key',
                                                                 'valence', 'speechiness', 'mode'])
+        df_audio_features =  pd.get_dummies(df_audio_features, drop_first = True, columns = ['key','mode'])
         # Create the final df, using the 'track_id' as index for future reference
     # ipdb.set_trace()
     df_audio_features['genres'] = genres
@@ -538,14 +580,18 @@ def model (df1):
     final = list()
     df1 = df1[~df1.index.duplicated(keep='first')]
     for cluster in range(n_clusters):
-        df2 = df.loc[df['cluster'] == cluster+1]
-        df2, n1_clusters = kmeans(df2.iloc[:,:-1])
-        df2['user_id']= df1.loc[df2.index.values]['user_id'].values
-        final.append(df2.loc[df2['cluster']==(pick_cluster(df2, n1_clusters))])
+        try: 
+            df2 = df.loc[df['cluster'] == cluster+1]
+            df2, n1_clusters = kmeans(df2.iloc[:,:-1])
+            df2['user_id']= df1.loc[df2.index.values]['user_id'].values
+            final.append(df2.loc[df2['cluster']==(pick_cluster(df2, n1_clusters))])
+        except: 
+            print(traceback.print_exc(5))
+            continue 
     x = 50/sum(len(d) for d in final)
     x = min(1, x)
     tracks = []
-    for cluster in range(n_clusters):
+    for cluster in range(len(final)): #range(n_clusters):
         tracks.append(final[cluster].groupby('user_id').sample(frac=x))
     return pd.concat(tracks)
         
