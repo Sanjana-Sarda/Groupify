@@ -61,7 +61,7 @@ def gen_basic_audio_features(sp, sample_trackid):
     return feature
 
 
-def get_extensive_audio_features(sp, sample_trackid, pvalues= [10,25,50,75,90], perform_dsp = True, return_basic_features = False): 
+def get_extensive_audio_features(sp, sample_trackid, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True): 
     '''
     Get a single track and retrieve audio features that are in addition to the basic features.
     '''
@@ -128,11 +128,11 @@ def get_extensive_audio_features(sp, sample_trackid, pvalues= [10,25,50,75,90], 
     return features
     
 
-def gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = True, return_basic_features = False): 
+def gen_extensive_audio_features(sp, trackids, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True): 
     features_all_tracks = []
     for ind, t_id in enumerate(trackids): 
         print('processing track ', t_id, '{f} out of {e}'.format(f=ind, e=len(trackids)))
-        features_all_tracks.append(get_extensive_audio_features(sp, t_id, pvalues= [10,25,50,75,90], perform_dsp = perform_dsp, return_basic_features = return_basic_features))
+        features_all_tracks.append(get_extensive_audio_features(sp, t_id, pvalues= [10,25,50,75,90], perform_dsp = False, return_basic_features = True))
 
     df_audio_extra = pandas.DataFrame(features_all_tracks).fillna(0)
     return df_audio_extra
