@@ -1,18 +1,5 @@
 function InviteButton() {
-<<<<<<< Updated upstream
     return <span onClick={() => document.getElementById("invite-dropdown").classList.toggle("show")} className="noselect invite-button">*</span>
-=======
-  return (
-    <span
-      onClick={() =>
-        document.getElementById("invite-dropdown").classList.toggle("show")
-      }
-      className="noselect invite-button"
-    >
-      Get party code
-    </span>
-  );
->>>>>>> Stashed changes
 }
 
 function InviteDropdown() {
@@ -29,27 +16,11 @@ function InviteDropdown() {
 }
 
 function CreatePlaylistButton() {
-<<<<<<< Updated upstream
     return <a className="create-playlist-button noselect" href='/create-playlist'>Create Playlist</a>;
 }
 
 function CreateButton() {
     return <a className="create-button noselect" href='/create'>+</a>;
-=======
-  return (
-    <a className="create-playlist-button noselect" href="/create-playlist">
-      Create Playlist
-    </a>
-  );
-}
-
-function CreateButton() {
-  return (
-    <a className="create-button noselect" href="/create">
-      Create your own party
-    </a>
-  );
->>>>>>> Stashed changes
 }
 
 class JoinBox extends React.Component {
@@ -122,28 +93,6 @@ function TopBar(props) {
             </div>
         </div>
     );
-<<<<<<< Updated upstream
-=======
-  }
-  if (props.children) {
-    var left = props.children[0];
-  }
-  return (
-    <div className="topbar noselect">
-      <div>
-        <a href="/" id="home-link">
-          <img
-            draggable={false}
-            src="/static/images/icon.png"
-            height="150px"
-            align="left"
-          />
-        </a>
-        {left}
-      </div>
-    </div>
-  );
->>>>>>> Stashed changes
 }
 function Functions() {
     return (
