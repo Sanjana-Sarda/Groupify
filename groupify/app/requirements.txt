@@ -1,6 +1,11 @@
 flask
 gunicorn
 flask-socketio==4.3.2
-eventlet 
+eventlet==0.30.2
 requests
 gevent-websocket
+spotipy
+sklearn
+pandas
+numpy
+rq

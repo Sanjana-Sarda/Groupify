@@ -18,7 +18,12 @@ class Playlists extends React.Component {
           flexDirection: "column",
         }}
       >
-        <p>YO</p>
+        <div class="playlist-display">
+          <h2 style={{ fontSize: "20px", align: "center" }}>
+            Enjoy your group playlist!
+          </h2>
+        </div>
+        <br />
         <iframe
           src={
             `https://open.spotify.com/embed/playlist/` +

@@ -6,7 +6,7 @@ function InviteButton() {
       }
       className="noselect invite-button"
     >
-      *
+      Get party code
     </span>
   );
 }
@@ -18,7 +18,9 @@ function InviteDropdown() {
         spellCheck="false"
         readOnly={true}
         id="link-input"
-        value={getCookie("party_id")}
+        value={
+          getCookie("party_id")
+        }
       ></input>
       <div
         onClick={() => {
@@ -35,45 +37,17 @@ function InviteDropdown() {
 }
 
 function CreatePlaylistButton() {
-  const [isLoading, setIsLoading] = React.useState(false);
-
   return (
-    <React.Fragment>
-      {isLoading && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "#00000080",
-          }}
-        >
-          <h3 style={{ color: "white", fontSize: "26px", fontWeight: "bold" }}>
-            LOADING
-          </h3>
-          <img id="loading-gif" src="/static/images/loadingimage.gif" />
-        </div>
-      )}
-      <a
-        className="create-playlist-button noselect"
-        href="/create-playlist"
-        onClick={() => setIsLoading(true)}
-      >
-        Create Playlist
-      </a>
-    </React.Fragment>
+    <a className="create-playlist-button noselect" href="/create-playlist">
+      Create Playlist
+    </a>
   );
 }
 
 function CreateButton() {
   return (
     <a className="create-button noselect" href="/create">
-      +
+      Create your own party
     </a>
   );
 }
@@ -91,7 +65,6 @@ class JoinBox extends React.Component {
   }
   submit() {
     if (this.state.code) {
-      console.log(this.state.code);
       window.location.pathname = "/party/" + this.state.code;
     }
   }
@@ -172,6 +145,7 @@ function TopBar(props) {
       </a>
     );
   }
+
   if (props.children) {
     var left = props.children[0];
   }
@@ -179,7 +153,12 @@ function TopBar(props) {
     <div className="topbar noselect">
       <div>
         <a href="/" id="home-link">
-          <img draggable={false} src="/static/images/icon.png" />
+          <img
+            draggable={false}
+            src="/static/images/icon.png"
+            height="150px"
+            align="left"
+          />
         </a>
         {left}
       </div>

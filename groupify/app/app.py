@@ -1,4 +1,5 @@
 from importlib.machinery import DEBUG_BYTECODE_SUFFIXES
+from sqlite3 import connect
 from statistics import mean
 from flask import Flask, render_template, request, abort, make_response, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room, send
@@ -15,8 +16,12 @@ import numpy as np
 from sklearn import preprocessing
 from operator import itemgetter
 from sklearn.metrics import silhouette_score
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.utils import shuffle
+from rq import Queue
+from rq.job import Job
+from worker import conn
+import sys
 
 try:
     from .psecrets import client_id, secret
@@ -30,7 +35,7 @@ socketio.init_app(app, cors_allowed_origins="*")
 scopes  = 'user-read-playback-state user-read-recently-played user-modify-playback-state user-read-currently-playing app-remote-control user-read-playback-position user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private'
 user_json = os.path.join(path, 'json', 'userdata.json')
 party_json = os.path.join(path, 'json', 'parties.json')
-
+q  = Queue(connection = conn)
 debug = True
 
 if __name__ =='__main__':
@@ -137,18 +142,44 @@ def create():
     resp.set_cookie('party_id', party_id)
     return resp
 
+
+@app.route("/results/<job_key>")
+def get_results(job_key):
+
+    job = Job.fetch(job_key, connection=conn)
+    print('Status: %s' % job.get_status())
+    id = job.result
+    if job.is_finished:
+        resp = make_response(render_template('playlists.html', host=request.host))
+        resp.set_cookie('playlist_id', id)
+        #resp.set_cookie('something', id)
+        return resp
+    else:
+        resp = make_response(render_template('loadings.html', host=request.host), 202)
+        return resp
+
+
 @app.route('/create-playlist')
 def create_playlist():
     owner = request.cookies.get('username')
     if not owner: 
         return redirect('/login?redirect=create')
-    party_id = request.referrer[28:]
+    party_id = request.referrer[37:]
     checkjson('parties')
     party_users = list(readjson(party_json)[party_id]['members'].keys())
     checkjson('userdata')
     users = readjson(user_json)
 
-    number_of_users=len(users)
+    from app import pcjob
+    job = q.enqueue_call(
+            func=pcjob, args=(owner, party_users, users, ), result_ttl=5000
+        )
+    print(job.get_id())
+    return redirect("/results/"+job.get_id())
+    #return "200"
+    
+    
+def pcjob(owner, party_users, users):
     songs_of_all_users=[]
     user_str = ""
     for user in party_users:
@@ -176,10 +207,9 @@ def create_playlist():
     
     id = create_playlist(sp_owner, user_str[:-2] +'Blend')
     enrich_playlist(sp_owner, owner, id, playlist_tracks)
-    resp = make_response(render_template('playlists.html', host=request.host))
-    resp.set_cookie('playlist_id', id)
-    return resp
-    #return "200"
+    return id
+    
+    
 
 @app.route('/party/<name>')
 def party(name):
@@ -489,7 +519,7 @@ def model (df1):
         final.append(df2.loc[df2['cluster']==(pick_cluster(df2, n1_clusters))])
     x = 50/sum(len(d) for d in final)
     tracks = []
-    for cluster in range(n_clusters):
+    for cluster in range(len(final)):
         tracks.append(final[cluster].groupby('user_id').sample(frac=x))
     return pd.concat(tracks)
         
@@ -497,12 +527,12 @@ def model (df1):
 def kmeans(df):
     silhouette_avg = []
     for num_clusters in range(2, 6):
-        kmeans = KMeans(n_clusters=num_clusters)
+        kmeans = MiniBatchKMeans(n_clusters=num_clusters)
         kmeans.fit(df)
         cluster_labels = kmeans.labels_
         silhouette_avg.append(silhouette_score(df, cluster_labels))
     n_clusters = np.argmax(silhouette_avg)+2
-    kmeans = KMeans(n_clusters = n_clusters, init = 'k-means++', random_state = 42)
+    kmeans = MiniBatchKMeans(n_clusters = n_clusters, init = 'k-means++', random_state = 42)
     y_kmeans = kmeans.fit_predict(df)+1
     df['cluster'] = y_kmeans
     return df, n_clusters
