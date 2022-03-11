@@ -525,6 +525,10 @@ def model (df1):
         
         
 def kmeans(df):
+    pca = PCA(n_components=3)
+    pca.fit(df)
+    pca_transform(df)
+    df = pca.transform(df)
     silhouette_avg = []
     for num_clusters in range(2, 6):
         kmeans = MiniBatchKMeans(n_clusters=num_clusters)
